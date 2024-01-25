@@ -36,8 +36,9 @@ export const g_myPluginKeywordTagRequiredArgValue = "true"; // Value required to
 const g_fileLineTag = "ln:";
 const g_fileNameTag = "file:";
 const g_fileModTimeTag = "mod:"; // #TODO Coming soon
-const g_fileFunctionNameTag = "fn:"; // #TODO Coming soon
-export const g_codeBlockArgs = [g_myPluginKeywordTag, g_fileLineTag, g_fileNameTag, g_fileModTimeTag, g_fileFunctionNameTag];
+const g_fileSymbolNameTag = "sym:"; // #TODO Coming soon
+const g_fileLinePhraseTag = "lnPhrase:";
+export const g_codeBlockArgs = [g_myPluginKeywordTag, g_fileLineTag, g_fileNameTag, g_fileModTimeTag, g_fileSymbolNameTag, g_fileLinePhraseTag];
 
 let g_previousOpenedFile: TFile | null;
 export let g_currentOpenedFile: TFile | null;
@@ -166,7 +167,7 @@ export default class MyPlugin extends Plugin {
 
 			// const result = this.old_ReplaceCodeBlockContent(fileContent);
 			if (liveCodeBlock.IsValidCodeBlock()) {
-				const resultLiveCodeBlock = this.new_ReplaceCodeBlockContent(liveCodeBlock);
+				const resultLiveCodeBlock = this.ReplaceCodeBlockContent(liveCodeBlock);
 
 				// #TODO Accumulate block content and stich them back into file content
 				// console.log(resultLiveCodeBlock.Content());
@@ -206,9 +207,9 @@ export default class MyPlugin extends Plugin {
 		return [true, newFileContent];
 	}
 	
-	private new_ReplaceCodeBlockContent(liveCodeBlock: LiveCodeBlock) : LiveCodeBlock {
+	private ReplaceCodeBlockContent(liveCodeBlock: LiveCodeBlock) : LiveCodeBlock {
 
-		// console.log("new_ReplaceCodeBlockContent");
+		// console.log("ReplaceCodeBlockContent");
 
 		if (liveCodeBlock.IsValidCodeBlock() && liveCodeBlock.IsValidLiveCodeBlock()) {
 			// console.log("Block met requirements:\n");
@@ -230,8 +231,6 @@ export default class MyPlugin extends Plugin {
 			return liveCodeBlock;
 		}
 
-		console.log("ModTime: " + sourceFileContent.ModTime());
-
 		// #TODO Detect user changes by caching and comparing header information.
 		// When a user makes an argument change, then we could look to clobber the body contents and
 		// update the body content with the file information, taking new user argument info into account.
@@ -241,27 +240,11 @@ export default class MyPlugin extends Plugin {
 			return liveCodeBlock;
 		}
 
-		let firstLineValue = 1; // #NOTE Inclusive
-		let lastLineValue = Number.MAX_VALUE;
-
-		const fileLineArgValue = liveCodeBlock.m_header.GetBlockHeaderArgValueByKey(g_fileLineTag);
-		if (fileLineArgValue.length > 0) {
-			// console.log("fileLineArgValue: " + fileLineArgValue);
-
-			const delimiterIndex = fileLineArgValue.indexOf('-');
-
-			if (delimiterIndex > -1) {
-				firstLineValue = +fileLineArgValue.substring(0, delimiterIndex);
-				lastLineValue = +fileLineArgValue.substring(delimiterIndex + 1);
-			}
-			else {
-				firstLineValue = +fileLineArgValue;
-			}
-		}
-
+		liveCodeBlock.m_header.PrintArgs();
 		const modTimeArgValue = liveCodeBlock.m_header.GetBlockHeaderArgValueByKey(g_fileModTimeTag);
 		const sourceFileModTime = sourceFileContent.ModTime();
 		console.log("modTimeArgValue: " + modTimeArgValue);
+
 		if (modTimeArgValue.length > 0) {
 			const argModTimeNum = +modTimeArgValue;
 			console.log("modTimeNum " + argModTimeNum);
@@ -277,7 +260,35 @@ export default class MyPlugin extends Plugin {
 			liveCodeBlock.m_header.AddArg(g_fileModTimeTag, sourceFileModTime.toString());
 		}
 
-		sourceFileContent.Segment(firstLineValue, lastLineValue);
+		let firstLineValue = 1; // #NOTE Inclusive
+		let lastLineValue = Number.MAX_VALUE;
+		
+		const fileSymbolNameArgValue = liveCodeBlock.m_header.GetBlockHeaderArgValueByKey(g_fileSymbolNameTag);
+		console.log("fileSymbolNameArgValue: " + fileSymbolNameArgValue);
+		const fileLinePhraseArgValue = liveCodeBlock.m_header.GetBlockHeaderArgValueByKey(g_fileLinePhraseTag);
+		const fileLineArgValue = liveCodeBlock.m_header.GetBlockHeaderArgValueByKey(g_fileLineTag);
+
+		if (fileSymbolNameArgValue.length > 0) { // fn:
+			sourceFileContent.SegmentSymbolAndBraces(fileSymbolNameArgValue);
+		}
+		else if (fileLinePhraseArgValue.length > 0) { // lnPhrase:
+			sourceFileContent.SegmentLinePhrase(fileLinePhraseArgValue);
+		}
+		else if (fileLineArgValue.length > 0) { // ln:
+			// console.log("fileLineArgValue: " + fileLineArgValue);
+
+			const delimiterIndex = fileLineArgValue.indexOf('-');
+
+			if (delimiterIndex > -1) {
+				firstLineValue = +fileLineArgValue.substring(0, delimiterIndex);
+				lastLineValue = +fileLineArgValue.substring(delimiterIndex + 1);
+			}
+			else {
+				firstLineValue = +fileLineArgValue;
+			}
+			sourceFileContent.Segment(firstLineValue, lastLineValue);
+		}
+
 		liveCodeBlock.m_body.ReplaceContent(sourceFileContent.Content());
 		return liveCodeBlock;
 	}

@@ -87,9 +87,7 @@ export class SourceFileContent {
         return fs.statSync(this.m_filePath).mtime.getTime();
     }
 
-    public Segment(firstLineValue: number, lastLineValue:number) {
-        console.log("Total len: " + this.m_fileContent.length);
-        
+    private SplitContent() : string[] {
         let fileSplitContent: string[] = [];
         let lastIndex = 0;
         for (let index = 0; index < this.m_fileContent.length; index++) {
@@ -99,6 +97,124 @@ export class SourceFileContent {
                 lastIndex = index + 1;
             }
         }
+
+        return fileSplitContent;
+    }
+
+    private ReverseIndexOf(content: string, key: string, startingIndex: number = -1) : number {
+
+        let index = content.length - 1;
+        if (startingIndex != -1) {
+
+            if (startingIndex >= 0 && startingIndex < content.length) {
+                index = startingIndex;
+            }
+            else {
+                console.log("Invalid index of " + startingIndex + " passed!");
+            }
+        }
+
+        let str: string = "";
+        for (; index >= 0; index--) {
+            const element = content[index];
+
+            if (key.contains(element)) {
+                str = element + str;
+
+                if (str == key) {
+                    console.log("Index of: " + index);
+                    return index;
+                }
+            }
+            else {
+                str = "";
+            }
+        }
+
+        console.log("Index of: " + -1);
+        return -1;
+    }
+
+    public SegmentSymbolLine(symbolKey: string) {
+        
+        if (!this.m_fileContent.contains(symbolKey)) {
+            console.log("SourceFile content does not contain symbol line key: " + symbolKey);
+            return;
+        }
+
+        const symbolKeyIndex = this.m_fileContent.indexOf(symbolKey);
+        const subStringStartIndex = this.ReverseIndexOf(this.m_fileContent, '\n', symbolKeyIndex) + 1;
+        const subStringEndIndex = this.m_fileContent.indexOf('\n', symbolKeyIndex) + 1;
+
+        // #TODO test line search argument
+        // console.log("subStringStartIndex " + subStringStartIndex + " subStringEndIndex " + subStringEndIndex);
+        // this.m_fileContent = this.m_fileContent.substring(subStringStartIndex, subStringEndIndex);
+    }
+
+    public SegmentSymbolAndBraces(symbolKey: string) {
+        
+        if (!this.m_fileContent.contains(symbolKey)) {
+            console.log("SourceFile content does not contain symbol and braces key: " + symbolKey);
+            return;
+        }
+
+        const symbolKeyIndex = this.m_fileContent.indexOf(symbolKey);
+        const subStringStartIndex = this.ReverseIndexOf(this.m_fileContent, '\n', symbolKeyIndex) + 1;
+
+        let numBracesOpen = 0;
+        let canBreak = false;
+        let subStringEndIndex = -1;
+
+        for (let index = subStringStartIndex; index < this.m_fileContent.length; index++) {
+            const element = this.m_fileContent[index];
+
+            if (element == '{') {
+                numBracesOpen += 1;
+                canBreak = true;
+            }
+            else if (element == '}') {
+
+                if (numBracesOpen == 0) {
+                    console.log("Found closing brace when numBracesOpen == 0!");
+                    return;
+                }
+
+                numBracesOpen -= 1;
+
+                if (numBracesOpen == 0 && canBreak) {
+                    subStringEndIndex = index + 1; // + 1 to include brace
+                    break;
+                }
+            }
+        }
+
+        // console.log("subStringStartIndex " + subStringStartIndex + " subStringEndIndex " + subStringEndIndex);
+        this.m_fileContent = this.m_fileContent.substring(subStringStartIndex, subStringEndIndex);
+    }
+
+    public SegmentLinePhrase(linePhraseArgValue: string) {
+        
+        if (!this.m_fileContent.contains(linePhraseArgValue)) {
+            console.log("linePhraseArgValue: " + linePhraseArgValue + " not found!");
+        }
+
+        let fileSplitContent: string[] = this.SplitContent();
+
+        let trackingBraces = false;
+        for (let index = 0; index < fileSplitContent.length; index++) {
+
+            if (fileSplitContent[index].contains(linePhraseArgValue)) {
+
+                this.m_fileContent = fileSplitContent[index].substring(0, fileSplitContent[index].length - 1);
+                return;
+            }
+        }
+    }
+
+    public Segment(firstLineValue: number, lastLineValue:number) {
+        console.log("Total len: " + this.m_fileContent.length);
+        
+        let fileSplitContent: string[] = this.SplitContent();
         
 		firstLineValue = Math.clamp(firstLineValue, 1, fileSplitContent.length);
 		lastLineValue = Math.clamp(lastLineValue, 1, fileSplitContent.length);

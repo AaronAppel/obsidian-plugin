@@ -61,10 +61,16 @@ export class CodeBlockHeader {
 		// #NOTE Header keeps ending '\n' char so body doesn't have to
 		this.m_headerContent = blockContent.substring(0, blockContent.indexOf('\n') + 1);
 		this.m_argsArr.pop(); // Empty the default value
-		this.LoadHeaderArgs(this.m_headerContent);
+		this.CollectHeaderArgs(this.m_headerContent);
 	}
 
 	public AddArg(argKey: string, argValue: string) {
+
+		if (this.m_headerContent.contains(argKey)) {
+			console.log("Header already contains: " + argKey);
+			return;
+		}
+
 		const contentNoNewLine = this.m_headerContent.substring(0, this.m_headerContent.length - 1);
 		// this.m_headerContent = contentNoNewLine + ' ' + argKey + "\"" + argValue + '\" \n';
 		this.m_headerContent = contentNoNewLine + ' ' + argKey + argValue + ' \n';
@@ -98,7 +104,7 @@ export class CodeBlockHeader {
 		return true;
 	}
 
-	private LoadHeaderArgs(blockHeaderContent: string) {
+	private CollectHeaderArgs(blockHeaderContent: string) {
 
         if (this.m_argsArr.length > 0) {
             console.log("m_arr is not empty!");
@@ -118,7 +124,7 @@ export class CodeBlockHeader {
 				const result = this.FindBlockHeaderArg(blockHeaderContent, main.g_codeBlockArgs[index]);
 				if (result.length > 0) {
 					this.m_argsArr.push([main.g_codeBlockArgs[index], result]);
-					// console.Log("Pushed: " + g_codeBlockArgs[index] + ", " + result);
+					// console.log("Pushed: " + main.g_codeBlockArgs[index] + ", " + result);
 				}
 			}
 		}
@@ -138,7 +144,7 @@ export class CodeBlockHeader {
 		if (indexStart > -1) {
 			
 			let indexEnd;
-			if (blockHeaderContent.indexOf("\"") == indexStart) { // #TODO Dependency with quotes coming earlier than file name argument
+			if (blockHeaderContent.indexOf("\"", indexStart) == indexStart) { // #TODO Dependency with quotes coming earlier than file name argument
 				indexStart += 1;
 				indexEnd = blockHeaderContent.indexOf("\"", indexStart);
 				// this.Log("Arg starts with quote at index: " + indexStart);
