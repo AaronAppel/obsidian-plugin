@@ -1,13 +1,8 @@
 import { readFile } from 'fs';
 import { App, TextAreaComponent, Editor, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, Setting, TFile, Workspace, WorkspaceLeaf } from 'obsidian';
 
-import * as fs from 'fs'; // #TODO Deprecate as above lines already import fs
-
 import { SourceFileContent } from 'SourceFile';
 import { LiveCodeBlock } from 'CodeBlock';
-
-// #TODO Remember to rename these classes and interfaces!
-// The template is still alive and well, with excess logic and default names.
 
 interface MyPluginSettings {
 	mySetting: string;
@@ -30,14 +25,25 @@ const g_insertWarningsWhenFileIsOutdated = true;
 // const g_showPopUpWarningsOnInvalidArgumentEntry = true;
 // const g_functionSearchCaseSensitivityOn = false;
 
+// #TODO Add buttons for users to see and interact with:
+// Update: Manual update button to grab latest source file content
+// Edit Source: Write the content of the code block back into the source code file section (update source with local changes)
+
+// #TODO Add notifications for users to see
+// Warnings: File out of date, invalid arguments, corrupted/invalid data or settings, etc
+
 export const g_myPluginKeywordTag = "live:"; // Tag to enable all plugin functionality for a block
 export const g_myPluginKeywordTagRequiredArgValue = "true"; // Value required to also enable functionality
+const g_codeBlockModeArgTag = "mode:";	// :live (update on change),
+										// :manual (button to update),
+										// :mod (auto change using mod time arg)
+										// :sync, :link (ideas to consider)
 
 const g_fileLineTag = "ln:";
 const g_fileNameTag = "file:";
 const g_fileModTimeTag = "mod:"; // #TODO Coming soon
 const g_fileSymbolNameTag = "sym:"; // #TODO Coming soon
-const g_fileLinePhraseTag = "lnPhrase:";
+const g_fileLinePhraseTag = "lnPhrase:"; // TODO Review
 export const g_codeBlockArgs = [g_myPluginKeywordTag, g_fileLineTag, g_fileNameTag, g_fileModTimeTag, g_fileSymbolNameTag, g_fileLinePhraseTag];
 
 let g_previousOpenedFile: TFile | null;
@@ -52,8 +58,8 @@ export default class MyPlugin extends Plugin {
 		this.addSettingTab(new SettingsTab(this.app, this));
 
 		this.addCommand({
-			id: "navigate-to-last-leaf",
-			name: "Navigate to last opened leaf",
+			id: "navigate-to-last-note",
+			name: "Navigate to last opened note",
 			callback: () => {
 				const currentLeaf = this.app.workspace.getLeaf();
 				if (currentLeaf && g_previousOpenedFile) {
@@ -63,7 +69,7 @@ export default class MyPlugin extends Plugin {
 			hotkeys: [
 			  {
 				modifiers: ["Mod"],
-				key: "tab", // #TODO Save and load hotkey in settings
+				key: "tab",
 			  },
 			],
 		});
@@ -91,7 +97,6 @@ export default class MyPlugin extends Plugin {
 
 		this.registerEvent(
 			this.app.workspace.on('editor-change', editor => {
-				// console.log("editor-change");
 				
 				const editedNoteContent = editor.getDoc().getValue();
 				
@@ -125,7 +130,7 @@ export default class MyPlugin extends Plugin {
 		await this.saveData(this.settings);
 	}
 
-	g_writesRemaining: number = 50; // #TODO Review infinite loop safety
+	g_writesRemaining: number = 30; // #TODO Review infinite loop safety
 	private UpdateLiveCodeBlocks(fileContent: string) : [boolean, string] {
 
 		// 1. Find all live code blocks in current file content
